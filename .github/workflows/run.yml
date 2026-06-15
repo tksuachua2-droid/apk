@@ -1,0 +1,100 @@
+name: Auto Scan APKs and Update JSON
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  scan-apks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Dependencies
+        run: |
+          pip install androguard==3.4.0a1 requests
+
+      - name: Process Release APKs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_ASSETS_URL: ${{ github.event.release.assets_url || format('{0}/repos/{1}/releases/latest', github.api_url, github.repository) }}
+        shell: python
+        run: |
+          import os
+          import json
+          import requests
+          from androguard.core.bytecodes.apk import APK
+
+          headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
+          assets_url = os.environ['RELEASE_ASSETS_URL']
+
+          response = requests.get(assets_url, headers=headers)
+          release_data = response.json()
+          
+          if "assets" in release_data:
+              assets = release_data["assets"]
+          else:
+              assets = release_data
+
+          json_file_path = "version.json"
+          if os.path.exists(json_file_path):
+              with open(json_file_path, "r", encoding="utf-8") as f:
+                  try:
+                      app_list = json.load(f)
+                  except:
+                      app_list = []
+          else:
+              app_list = []
+
+          app_dict = {app['packageName']: app for app in app_list}
+
+          for asset in assets:
+              file_name = asset['name']
+              if file_name.endswith('.apk'):
+                  download_url = asset['browser_download_url']
+                  print(f"Đang xử lý file: {file_name}...")
+
+                  apk_data = requests.get(download_url).content
+                  with open(file_name, "wb") as f:
+                      f.write(apk_data)
+
+                  try:
+                      apk = APK(file_name)
+                      package_name = apk.get_package()
+                      version_code = int(apk.get_androidversion_code())
+                      version_name = apk.get_androidversion_name()
+
+                      app_dict[package_name] = {
+                          "packageName": package_name,
+                          "versionCode": version_code,
+                          "versionName": version_name,
+                          "fileName": file_name,
+                          "apkUrl": download_url
+                      }
+                      print(f"Thành công: {package_name} (Code: {version_code})")
+                  except Exception as e:
+                      print(f"Lỗi khi đọc file {file_name}: {e}")
+                  finally:
+                      if os.path.exists(file_name):
+                          os.remove(file_name)
+
+          new_app_list = list(app_dict.values())
+          with open(json_file_path, "w", encoding="utf-8") as f:
+              json.dump(new_app_list, f, indent=2, ensure_ascii=False)
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push)
