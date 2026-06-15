@@ -1,1 +1,44 @@
-
+[
+  {
+    "packageName": "cm.aptoidetv.pt",
+    "versionCode": 529,
+    "versionName": "5.1.1",
+    "fileName": "AptoideTV.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/AptoideTV.apk"
+  },
+  {
+    "packageName": "com.linor.vn.getout",
+    "versionCode": 2,
+    "versionName": "1.0.8",
+    "fileName": "getout.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/getout.apk"
+  },
+  {
+    "packageName": "com.tvonline.hdtv",
+    "versionCode": 2,
+    "versionName": "1.1",
+    "fileName": "HDTV.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/HDTV.apk"
+  },
+  {
+    "packageName": "com.oxootv.spagreen",
+    "versionCode": 68,
+    "versionName": "2.5.8",
+    "fileName": "Phim4K.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/Phim4K.apk"
+  },
+  {
+    "packageName": "vn.vtv.vtvgotv",
+    "versionCode": 314,
+    "versionName": "12.6.9",
+    "fileName": "VTVgoTV.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/VTVgoTV.apk"
+  },
+  {
+    "packageName": "com.google.android.youtube.tv",
+    "versionCode": 530301,
+    "versionName": "5.30.301",
+    "fileName": "YouTube_TV.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/YouTube_TV.apk"
+  }
+]
