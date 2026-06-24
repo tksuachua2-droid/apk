@@ -1,8 +1,7 @@
 name: Auto Scan APKs and Update JSON
-
 on:
   release:
-    types: [published]
+    types: [published, edited]
   workflow_dispatch:
 
 jobs:
@@ -10,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -18,11 +16,11 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.x'
+          python-version: '3.11'
 
       - name: Install Dependencies
         run: |
-          pip install androguard==3.4.0a1 requests
+          pip install "androguard>=4.0.0" requests
 
       - name: Process Release APKs
         env:
@@ -33,47 +31,72 @@ jobs:
           import os
           import json
           import requests
-          from androguard.core.bytecodes.apk import APK
+          # Sửa đường dẫn import chuẩn theo cấu trúc Androguard 4.x
+          from androguard.core.apk import APK
 
-          headers = {"Authorization": f"token {os.environ['GITHUB_TOKEN']}"}
+          headers = {
+              "Authorization": f"token {os.environ['GITHUB_TOKEN']}",
+              "Accept": "application/vnd.github.v3+json"
+          }
           assets_url = os.environ['RELEASE_ASSETS_URL']
-
-          response = requests.get(assets_url, headers=headers)
-          release_data = response.json()
           
-          if "assets" in release_data:
-              assets = release_data["assets"]
-          else:
+          print(f"Fetching assets from: {assets_url}")
+          response = requests.get(assets_url, headers=headers)
+          response.raise_for_status()
+          release_data = response.json()
+
+          if isinstance(release_data, dict):
+              assets = release_data.get("assets", [])
+          elif isinstance(release_data, list):
               assets = release_data
+          else:
+              assets = []
+
+          current_release_apk_files = {asset['name'] for asset in assets if asset['name'].endswith('.apk')}
+          print(f"Các file APK hiện có trên Release: {current_release_apk_files}")
 
           json_file_path = "version.json"
           if os.path.exists(json_file_path):
               with open(json_file_path, "r", encoding="utf-8") as f:
                   try:
                       app_list = json.load(f)
-                  except:
+                  except Exception:
                       app_list = []
           else:
               app_list = []
 
-          app_dict = {app['packageName']: app for app in app_list}
+          # 1. Đồng bộ xóa: Chỉ giữ lại các ứng dụng có file tồn tại trên Release
+          filtered_app_list = []
+          for app in app_list:
+              if app.get('fileName') in current_release_apk_files:
+                  filtered_app_list.append(app)
+              else:
+                  print(f"Đã gỡ file khỏi JSON do không thấy trên Release: {app.get('fileName')}")
 
+          app_dict = {app['packageName']: app for app in filtered_app_list}
+
+          # 2. Đồng bộ thêm / cập nhật: Quét tất cả APK hiện có và thêm vào json
           for asset in assets:
               file_name = asset['name']
               if file_name.endswith('.apk'):
                   download_url = asset['browser_download_url']
-                  print(f"Đang xử lý file: {file_name}...")
-
-                  apk_data = requests.get(download_url).content
-                  with open(file_name, "wb") as f:
-                      f.write(apk_data)
-
+                  print(f"Đang quét file: {file_name}...")
+                  
                   try:
-                      apk = APK(file_name)
-                      package_name = apk.get_package()
-                      version_code = int(apk.get_androidversion_code())
-                      version_name = apk.get_androidversion_name()
+                      # Tải file về môi trường tạm thời
+                      with requests.get(download_url, stream=True) as r:
+                          r.raise_for_status()
+                          with open(file_name, "wb") as f:
+                              for chunk in r.iter_content(chunk_size=8192):
+                                  f.write(chunk)
 
+                      # Sử dụng các hàm lấy thông tin của Androguard 4.x
+                      apk = APK(file_name)
+                      package_name = str(apk.get_package())
+                      version_code = int(apk.get_androidversion_code())
+                      version_name = str(apk.get_androidversion_name())
+
+                      # Tạo hoặc cập nhật thông tin ứng dụng vào dictionary
                       app_dict[package_name] = {
                           "packageName": package_name,
                           "versionCode": version_code,
@@ -81,13 +104,14 @@ jobs:
                           "fileName": file_name,
                           "apkUrl": download_url
                       }
-                      print(f"Thành công: {package_name} (Code: {version_code})")
+                      print(f"Quét thành công và ghi nhận: {package_name} (Phiên bản: {version_name} - Code: {version_code})")
                   except Exception as e:
-                      print(f"Lỗi khi đọc file {file_name}: {e}")
+                      print(f"Lỗi phân tích file {file_name}: {e}")
                   finally:
                       if os.path.exists(file_name):
                           os.remove(file_name)
 
+          # Ghi đè danh sách mới cập nhật lại vào tập tin JSON
           new_app_list = list(app_dict.values())
           with open(json_file_path, "w", encoding="utf-8") as f:
               json.dump(new_app_list, f, indent=2, ensure_ascii=False)
@@ -97,4 +121,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add version.json
-          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release" && git push)
+          git diff-index --quiet HEAD || (git commit -m "Auto-update version.json from Release (Sync Add/Delete)" && git push)
