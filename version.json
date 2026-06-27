@@ -28,17 +28,17 @@
     "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/VTVgoTV.apk"
   },
   {
-    "packageName": "com.google.android.youtube.tv",
-    "versionCode": 530301,
-    "versionName": "5.30.301",
-    "fileName": "YouTube_TV.apk",
-    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/YouTube_TV.apk"
-  },
-  {
     "packageName": "com.zdworksinc.bluetoothtvscanner",
     "versionCode": 2,
     "versionName": "2.0",
     "fileName": "BluetoothScanner.apk",
     "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/BluetoothScanner.apk"
+  },
+  {
+    "packageName": "com.google.android.youtube.tv",
+    "versionCode": 202,
+    "versionName": "2.0.2",
+    "fileName": "YouTubeTV.apk",
+    "apkUrl": "https://github.com/tksuachua2-droid/apk/releases/download/1.0/YouTubeTV.apk"
   }
 ]
